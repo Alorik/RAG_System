@@ -1,10 +1,14 @@
-from fastapi import FastAPI, Query, HTTPException
 from enum import Enum
+
+from fastapi import FastAPI, HTTPException, Query
+
 from api.database import get_connection
+
 
 class TitleType(str, Enum):
     MOVIE = "Movie"
     TV_SHOW = "TV Show"
+
 
 app = FastAPI(title="Netflix Catalog API")
 
@@ -23,7 +27,7 @@ def get_titles(
     rating: str | None = None,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
-    ) -> list[dict]:
+) -> list[dict]:
     """Return paginated titles with optional filters."""
     connection = get_connection()
 
@@ -55,7 +59,6 @@ def get_titles(
         conditions.append("t.type = ?")
         params.append(type)
 
-
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
 
@@ -64,7 +67,6 @@ def get_titles(
 
     rows = connection.execute(query, params).fetchall()
     connection.close()
-
 
     return [
         {
@@ -78,9 +80,9 @@ def get_titles(
     ]
 
 
-
 @app.get("/titles/{show_id}")
 def get_title(show_id: int) -> dict:
+    """Return a single title with its countries and genres."""
     connection = get_connection()
 
     row = connection.execute(
@@ -115,6 +117,7 @@ def get_title(show_id: int) -> dict:
         """,
         (show_id,),
     ).fetchall()
+
     connection.close()
 
     return {
@@ -133,8 +136,8 @@ def search_titles(
     q: str,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
-    ) -> list[dict]:
-    """Search titles with pagination."""
+) -> list[dict]:
+    """Search titles by name with pagination."""
     connection = get_connection()
 
     rows = connection.execute(
@@ -159,3 +162,49 @@ def search_titles(
         }
         for row in rows
     ]
+
+
+@app.get("/stats")
+def get_stats() -> dict:
+    """Return summary statistics for the catalogue."""
+    connection = get_connection()
+
+    total_titles = connection.execute(
+        "SELECT COUNT(*) FROM titles"
+    ).fetchone()[0]
+
+    type_rows = connection.execute(
+        """
+        SELECT type, COUNT(*)
+        FROM titles
+        GROUP BY type
+        """
+    ).fetchall()
+
+    country_rows = connection.execute(
+        """
+        SELECT c.name, COUNT(DISTINCT tc.show_id)
+        FROM countries c
+        JOIN title_countries tc ON c.id = tc.country_id
+        GROUP BY c.id, c.name
+        ORDER BY COUNT(DISTINCT tc.show_id) DESC
+        LIMIT 10
+        """
+    ).fetchall()
+
+    connection.close()
+
+    return {
+        "total_titles": total_titles,
+        "by_type": {
+            row[0]: row[1]
+            for row in type_rows
+        },
+        "top_countries": [
+            {
+                "country": row[0],
+                "count": row[1],
+            }
+            for row in country_rows
+        ],
+    }
