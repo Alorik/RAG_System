@@ -1,7 +1,6 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Query, HTTPException
 from enum import Enum
 from api.database import get_connection
-from fastapi import FastAPI, Query
 
 class TitleType(str, Enum):
     MOVIE = "Movie"
@@ -77,3 +76,32 @@ def get_titles(
         }
         for row in rows
     ]
+
+
+
+@app.get("/titles/{show_id}")
+def get_title(show_id: int) -> dict:
+    connection = get_connection()
+
+    row = connection.execute(
+        """
+        SELECT show_id, type, title, release_year, rating
+        FROM titles
+        WHERE show_id = ?
+        """,
+        (show_id,),
+    ).fetchone()
+
+    if row is None:
+        connection.close()
+        raise HTTPException(status_code=404, detail="Title not found")
+
+    connection.close()
+
+    return {
+        "show_id": row[0],
+        "type": row[1],
+        "title": row[2],
+        "release_year": row[3],
+        "rating": row[4],
+    }
