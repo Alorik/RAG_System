@@ -14,10 +14,11 @@ def root() -> dict[str, str]:
 @app.get("/titles")
 def get_titles(
     country: str | None = None,
+    release_year: int | None = None,
     page: int = 1,
     page_size: int = 20,
     ) -> list[dict]:
-    """Return paginated titles with an optional country filter."""
+    """Return paginated titles with optional filters."""
     connection = get_connection()
 
     query = """
@@ -25,22 +26,30 @@ def get_titles(
         FROM titles t
     """
 
+    conditions: list[str] = []
     params: list[str | int] = []
 
     if country:
         query += """
             JOIN title_countries tc ON t.show_id = tc.show_id
             JOIN countries c ON tc.country_id = c.id
-            WHERE c.name = ?
         """
+        conditions.append("c.name = ?")
         params.append(country)
+
+    if release_year is not None:
+        conditions.append("t.release_year = ?")
+        params.append(release_year)
+
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
 
     query += " LIMIT ? OFFSET ?"
     params.extend([page_size, (page - 1) * page_size])
 
     rows = connection.execute(query, params).fetchall()
-
     connection.close()
+
 
     return [
         {
