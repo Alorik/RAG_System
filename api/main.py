@@ -20,6 +20,7 @@ def get_titles(
     country: str | None = None,
     release_year: int | None = None,
     type: TitleType | None = None,
+    rating: str | None = None,
     page: int = 1,
     page_size: int = 20,
     ) -> list[dict]:
@@ -45,6 +46,10 @@ def get_titles(
     if release_year is not None:
         conditions.append("t.release_year = ?")
         params.append(release_year)
+
+    if rating:
+        conditions.append("t.rating = ?")
+        params.append(rating)
 
     if type:
         conditions.append("t.type = ?")
