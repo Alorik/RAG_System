@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from enum import Enum
 from api.database import get_connection
+from fastapi import FastAPI, Query
 
 class TitleType(str, Enum):
     MOVIE = "Movie"
@@ -21,8 +22,8 @@ def get_titles(
     release_year: int | None = None,
     type: TitleType | None = None,
     rating: str | None = None,
-    page: int = 1,
-    page_size: int = 20,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
     ) -> list[dict]:
     """Return paginated titles with optional filters."""
     connection = get_connection()
