@@ -193,6 +193,19 @@ def insert_genres(
 
     connection.commit()
 
+def print_summary(
+    total_rows: int,
+    cleaned_rows: int,
+    dropped_rows: int,
+) -> None:
+    """Print a summary of the ingestion process."""
+    print("\nIngestion Summary")
+    print("-----------------")
+    print(f"Rows loaded: {total_rows}")
+    print(f"Rows cleaned: {cleaned_rows}")
+    print(f"Rows dropped: {dropped_rows}")
+
+
 def main() -> None:
     rows = load_csv()
     cleaned_rows = [clean_row(row) for row in rows]
@@ -203,7 +216,12 @@ def main() -> None:
     insert_genres(connection, cleaned_rows)
     connection.close()
 
-    print(f"Loaded {len(rows)} rows")
+    print_summary(
+
+        total_rows=len(rows),
+        cleaned_rows=len(cleaned_rows),
+        dropped_rows=0,
+    )
 
 if __name__ == "__main__":
     main()
