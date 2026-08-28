@@ -1,5 +1,7 @@
 import csv
 from pathlib import Path
+from datetime import datetime
+
 
 CSV_PATH = Path("data/netflix_titles.csv")
 
@@ -8,6 +10,13 @@ def load_csv() -> list[dict[str, str]]:
     """Load the Netflix titles from the source CSV."""
     with CSV_PATH.open("r", encoding="utf-8", newline="") as file:
         return list(csv.DictReader(file))
+
+def normalize_date(value: str | None) -> str | None:
+    """Convert a CSV date into ISO format while preserving missing values."""
+    if value is None:
+        return None
+
+    return datetime.strptime(value, "%B %d, %Y").date().isoformat()
 
 def clean_row(row: dict[str, str]) -> dict[str, str | None]:
     """Trim string values and convert empty values to None."""
@@ -18,7 +27,8 @@ def clean_row(row: dict[str, str]) -> dict[str, str | None]:
         cleaned[key] = value if value else None
       
     cleaned["show_id"] = int(cleaned["show_id"])
-    cleaned["release_year"] = int(cleaned["release_year"])  
+    cleaned["release_year"] = int(cleaned["release_year"])
+    cleaned["date_added"] = normalize_date(cleaned["date_added"])  
 
     return cleaned
 
