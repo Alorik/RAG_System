@@ -9,10 +9,23 @@ def load_csv() -> list[dict[str, str]]:
     with CSV_PATH.open("r", encoding="utf-8", newline="") as file:
         return list(csv.DictReader(file))
 
+def clean_row(row: dict[str, str]) -> dict[str, str | None]:
+    """Trim string values and convert empty values to None."""
+    cleaned = {}
+
+    for key, value in row.items():
+        value = value.strip()
+        cleaned[key] = value if value else None
+
+    return cleaned
+
 
 def main() -> None:
     rows = load_csv()
+    cleaned_rows = [clean_row(row) for row in rows]
+
     print(f"Loaded {len(rows)} rows")
+    print(cleaned_rows[0])
 
 
 if __name__ == "__main__":
