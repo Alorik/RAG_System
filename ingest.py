@@ -1,10 +1,13 @@
 import csv
+import sqlite3
+
 from pathlib import Path
 from datetime import datetime
 
 
 CSV_PATH = Path("data/netflix_titles.csv")
 
+DB_PATH = Path("data/netflix.db")
 
 def load_csv() -> list[dict[str, str]]:
     """Load the Netflix titles from the source CSV."""
@@ -33,13 +36,63 @@ def clean_row(row: dict[str, str]) -> dict[str, str | None]:
     return cleaned
 
 
+def create_database() -> sqlite3.Connection:
+    """Create the SQLite database and its tables."""
+    connection = sqlite3.connect(DB_PATH)
+
+    connection.executescript(
+        """
+        CREATE TABLE IF NOT EXISTS titles (
+            show_id INTEGER PRIMARY KEY,
+            type TEXT NOT NULL,
+            title TEXT NOT NULL,
+            director TEXT,
+            cast TEXT,
+            date_added TEXT,
+            release_year INTEGER NOT NULL,
+            rating TEXT,
+            duration TEXT,
+            description TEXT NOT NULL
+        );
+
+        CREATE TABLE IF NOT EXISTS countries (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE
+        );
+
+        CREATE TABLE IF NOT EXISTS title_countries (
+            show_id INTEGER NOT NULL,
+            country_id INTEGER NOT NULL,
+            PRIMARY KEY (show_id, country_id),
+            FOREIGN KEY (show_id) REFERENCES titles(show_id),
+            FOREIGN KEY (country_id) REFERENCES countries(id)
+        );
+
+        CREATE TABLE IF NOT EXISTS genres (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT NOT NULL UNIQUE
+        );
+
+        CREATE TABLE IF NOT EXISTS title_genres (
+            show_id INTEGER NOT NULL,
+            genre_id INTEGER NOT NULL,
+            PRIMARY KEY (show_id, genre_id),
+            FOREIGN KEY (show_id) REFERENCES titles(show_id),
+            FOREIGN KEY (genre_id) REFERENCES genres(id)
+        );
+        """
+    )
+
+    return connection
+
 def main() -> None:
     rows = load_csv()
     cleaned_rows = [clean_row(row) for row in rows]
 
-    print(f"Loaded {len(rows)} rows")
-    print(cleaned_rows[0])
+    connection = create_database()
+    connection.close()
 
+    print(f"Loaded {len(rows)} rows")
 
 if __name__ == "__main__":
     main()
