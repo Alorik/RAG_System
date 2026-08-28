@@ -96,6 +96,25 @@ def get_title(show_id: int) -> dict:
         connection.close()
         raise HTTPException(status_code=404, detail="Title not found")
 
+    countries = connection.execute(
+        """
+        SELECT c.name
+        FROM countries c
+        JOIN title_countries tc ON c.id = tc.country_id
+        WHERE tc.show_id = ?
+        """,
+        (show_id,),
+    ).fetchall()
+
+    genres = connection.execute(
+        """
+        SELECT g.name
+        FROM genres g
+        JOIN title_genres tg ON g.id = tg.genre_id
+        WHERE tg.show_id = ?
+        """,
+        (show_id,),
+    ).fetchall()
     connection.close()
 
     return {
@@ -104,4 +123,6 @@ def get_title(show_id: int) -> dict:
         "title": row[2],
         "release_year": row[3],
         "rating": row[4],
+        "countries": [country[0] for country in countries],
+        "genres": [genre[0] for genre in genres],
     }
