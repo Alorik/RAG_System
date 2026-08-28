@@ -126,3 +126,30 @@ def get_title(show_id: int) -> dict:
         "countries": [country[0] for country in countries],
         "genres": [genre[0] for genre in genres],
     }
+
+
+@app.get("/search")
+def search_titles(q: str) -> list[dict]:
+    connection = get_connection()
+
+    rows = connection.execute(
+        """
+        SELECT show_id, type, title, release_year, rating
+        FROM titles
+        WHERE title LIKE ?
+        """,
+        (f"%{q}%",),
+    ).fetchall()
+
+    connection.close()
+
+    return [
+        {
+            "show_id": row[0],
+            "type": row[1],
+            "title": row[2],
+            "release_year": row[3],
+            "rating": row[4],
+        }
+        for row in rows
+    ]
