@@ -129,7 +129,12 @@ def get_title(show_id: int) -> dict:
 
 
 @app.get("/search")
-def search_titles(q: str) -> list[dict]:
+def search_titles(
+    q: str,
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=20, ge=1, le=100),
+    ) -> list[dict]:
+    """Search titles with pagination."""
     connection = get_connection()
 
     rows = connection.execute(
@@ -137,8 +142,9 @@ def search_titles(q: str) -> list[dict]:
         SELECT show_id, type, title, release_year, rating
         FROM titles
         WHERE title LIKE ?
+        LIMIT ? OFFSET ?
         """,
-        (f"%{q}%",),
+        (f"%{q}%", page_size, (page - 1) * page_size),
     ).fetchall()
 
     connection.close()
