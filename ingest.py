@@ -16,6 +16,9 @@ def clean_row(row: dict[str, str]) -> dict[str, str | None]:
     for key, value in row.items():
         value = value.strip()
         cleaned[key] = value if value else None
+      
+    cleaned["show_id"] = int(cleaned["show_id"])
+    cleaned["release_year"] = int(cleaned["release_year"])  
 
     return cleaned
 
