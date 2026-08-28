@@ -12,7 +12,11 @@ def root() -> dict[str, str]:
 
 
 @app.get("/titles")
-def get_titles() -> list[dict]:
+def get_titles(
+    page: int = 1,
+    page_size: int = 20,
+    ) -> list[dict]:
+
     """Return all titles from the Netflix catalogue."""
     connection = get_connection()
 
@@ -20,7 +24,9 @@ def get_titles() -> list[dict]:
         """
         SELECT show_id, type, title, release_year, rating
         FROM titles
-        """
+        LIMIT ? OFFSET ?
+        """,
+        (page_size, (page - 1) * page_size),
     ).fetchall()
 
     connection.close()
