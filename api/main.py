@@ -1,6 +1,10 @@
 from fastapi import FastAPI
-
+from enum import Enum
 from api.database import get_connection
+
+class TitleType(str, Enum):
+    MOVIE = "Movie"
+    TV_SHOW = "TV Show"
 
 app = FastAPI(title="Netflix Catalog API")
 
@@ -15,7 +19,7 @@ def root() -> dict[str, str]:
 def get_titles(
     country: str | None = None,
     release_year: int | None = None,
-    type: str | None = None,
+    type: TitleType | None = None,
     page: int = 1,
     page_size: int = 20,
     ) -> list[dict]:
