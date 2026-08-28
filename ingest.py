@@ -163,6 +163,36 @@ def insert_countries(
 
     connection.commit()
 
+
+def insert_genres(
+    connection: sqlite3.Connection,
+    rows: list[dict[str, str | int | None]],
+) -> None:
+    """Insert unique genres and link them to their titles."""
+    for row in rows:
+        genres = split_values(row["listed_in"])
+
+        for genre in genres:
+            connection.execute(
+                "INSERT OR IGNORE INTO genres (name) VALUES (?)",
+                (genre,),
+            )
+
+            genre_id = connection.execute(
+                "SELECT id FROM genres WHERE name = ?",
+                (genre,),
+            ).fetchone()[0]
+
+            connection.execute(
+                """
+                INSERT INTO title_genres (show_id, genre_id)
+                VALUES (?, ?)
+                """,
+                (row["show_id"], genre_id),
+            )
+
+    connection.commit()
+
 def main() -> None:
     rows = load_csv()
     cleaned_rows = [clean_row(row) for row in rows]
@@ -170,6 +200,7 @@ def main() -> None:
     connection = create_database()
     insert_titles(connection, cleaned_rows)
     insert_countries(connection, cleaned_rows)
+    insert_genres(connection, cleaned_rows)
     connection.close()
 
     print(f"Loaded {len(rows)} rows")
