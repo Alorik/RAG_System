@@ -15,6 +15,7 @@ def root() -> dict[str, str]:
 def get_titles(
     country: str | None = None,
     release_year: int | None = None,
+    type: str | None = None,
     page: int = 1,
     page_size: int = 20,
     ) -> list[dict]:
@@ -40,6 +41,11 @@ def get_titles(
     if release_year is not None:
         conditions.append("t.release_year = ?")
         params.append(release_year)
+
+    if type:
+        conditions.append("t.type = ?")
+        params.append(type)
+
 
     if conditions:
         query += " WHERE " + " AND ".join(conditions)
