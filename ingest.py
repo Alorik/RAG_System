@@ -127,6 +127,41 @@ def insert_titles(
 
     connection.commit()
 
+def split_values(value: str | None) -> list[str]:
+    """Split a comma-separated field into cleaned individual values."""
+    if value is None:
+        return []
+
+    return [item.strip() for item in value.split(",") if item.strip()]
+
+def insert_countries(
+    connection: sqlite3.Connection,
+    rows: list[dict[str, str | int | None]],
+) -> None:
+    """Insert unique countries and link them to their titles."""
+    for row in rows:
+        countries = split_values(row["country"])
+
+        for country in countries:
+            connection.execute(
+                "INSERT OR IGNORE INTO countries (name) VALUES (?)",
+                (country,),
+            )
+
+            country_id = connection.execute(
+                "SELECT id FROM countries WHERE name = ?",
+                (country,),
+            ).fetchone()[0]
+
+            connection.execute(
+                """
+                INSERT INTO title_countries (show_id, country_id)
+                VALUES (?, ?)
+                """,
+                (row["show_id"], country_id),
+            )
+
+    connection.commit()
 
 def main() -> None:
     rows = load_csv()
@@ -134,6 +169,7 @@ def main() -> None:
 
     connection = create_database()
     insert_titles(connection, cleaned_rows)
+    insert_countries(connection, cleaned_rows)
     connection.close()
 
     print(f"Loaded {len(rows)} rows")
