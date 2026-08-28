@@ -85,11 +85,55 @@ def create_database() -> sqlite3.Connection:
 
     return connection
 
+
+
+def insert_titles(
+    connection: sqlite3.Connection,
+    rows: list[dict[str, str | int | None]],
+) -> None:
+    """Insert cleaned title records into the titles table."""
+    connection.executemany(
+        """
+        INSERT INTO titles (
+            show_id,
+            type,
+            title,
+            director,
+            cast,
+            date_added,
+            release_year,
+            rating,
+            duration,
+            description
+        )
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        """,
+        [
+            (
+                row["show_id"],
+                row["type"],
+                row["title"],
+                row["director"],
+                row["cast"],
+                row["date_added"],
+                row["release_year"],
+                row["rating"],
+                row["duration"],
+                row["description"],
+            )
+            for row in rows
+        ],
+    )
+
+    connection.commit()
+
+
 def main() -> None:
     rows = load_csv()
     cleaned_rows = [clean_row(row) for row in rows]
 
     connection = create_database()
+    insert_titles(connection, cleaned_rows)
     connection.close()
 
     print(f"Loaded {len(rows)} rows")
