@@ -53,3 +53,26 @@ def test_search_titles():
         title["title"] == "Brahman Naman"
         for title in response.json()
     )
+
+
+def test_ask_returns_answer_and_sources(monkeypatch):
+    def fake_generate_answer(question, titles):
+        return "Brahman Naman is an Indian comedy movie."
+
+    monkeypatch.setattr(
+        "api.main.generate_answer",
+        fake_generate_answer,
+    )
+
+    response = client.post(
+        "/ask",
+        json={"question": "Suggest an Indian comedy movie"},
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["answer"] == "Brahman Naman is an Indian comedy movie."
+    assert "sources" in data
+    assert len(data["sources"]) > 0
