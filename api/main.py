@@ -1,5 +1,9 @@
 from enum import Enum
+from pydantic import BaseModel
 
+from rag.embeddings import create_embeddings
+from rag.generation import generate_answer
+from rag.retrieval import create_catalogue_text, get_catalogue, retrieve_titles
 from fastapi import FastAPI, HTTPException, Query
 
 from api.database import get_connection
@@ -9,8 +13,14 @@ class TitleType(str, Enum):
     MOVIE = "Movie"
     TV_SHOW = "TV Show"
 
+class AskRequest(BaseModel):
+    question: str
+
 
 app = FastAPI(title="Netflix Catalog API")
+catalogue = get_catalogue()
+catalogue_texts = [create_catalogue_text(title) for title in catalogue]
+catalogue_embeddings = create_embeddings(catalogue_texts)
 
 
 @app.get("/")
@@ -206,5 +216,30 @@ def get_stats() -> dict:
                 "count": row[1],
             }
             for row in country_rows
+        ],
+    }
+
+@app.post("/ask")
+def ask_catalogue(request: AskRequest) -> dict:
+    """Answer a natural-language question using retrieved catalogue titles."""
+    if not request.question.strip():
+        raise HTTPException(status_code=400, detail="Question cannot be empty")
+
+    retrieved_titles = retrieve_titles(
+        request.question,
+        catalogue,
+        catalogue_embeddings,
+    )
+
+    answer = generate_answer(
+        request.question,
+        retrieved_titles,
+    )
+
+    return {
+        "answer": answer,
+        "sources": [
+            title["show_id"]
+            for title in retrieved_titles
         ],
     }
