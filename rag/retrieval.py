@@ -75,6 +75,18 @@ def retrieve_titles(
 
     scores = catalogue_embeddings @ question_embedding
 
+    question_lower = question.lower()
+
+    if "movie" in question_lower:
+        for index, title in enumerate(catalogue):
+            if title["type"] != "Movie":
+                scores[index] -= 0.2
+
+    if "tv show" in question_lower or "tv series" in question_lower:
+        for index, title in enumerate(catalogue):
+            if title["type"] != "TV Show":
+                scores[index] -= 0.2
+
     top_indices = np.argsort(scores)[-TOP_K:][::-1]
 
     return [
