@@ -36,6 +36,8 @@ def clean_row(row: dict[str, str]) -> dict[str, str | None]:
     return cleaned
 
 
+
+
 def create_database() -> sqlite3.Connection:
     """Create the SQLite database and its tables."""
     connection = sqlite3.connect(DB_PATH)

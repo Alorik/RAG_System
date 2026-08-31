@@ -1,4 +1,9 @@
-from rag.retrieval import create_catalogue_text, get_catalogue, retrieve_titles
+from rag.retrieval import (
+    create_catalogue_text,
+    get_catalogue,
+    retrieve_titles,
+    select_candidate_indices,
+)
 from rag.embeddings import create_embeddings
 
 
@@ -19,6 +24,22 @@ def test_catalogue_text_contains_metadata():
     assert "Release year:" in text
     assert "Rating:" in text
     assert "Description:" in text
+
+
+def test_candidate_filter_uses_explicit_question_metadata():
+    catalogue = [
+        {"type": "Movie", "country": "India", "genres": "Comedies"},
+        {"type": "Movie", "country": "India", "genres": "Dramas"},
+        {"type": "TV Show", "country": "India", "genres": "Comedies"},
+        {"type": "Movie", "country": "United States", "genres": "Comedies"},
+    ]
+
+    indices = select_candidate_indices(
+        "Suggest an Indian comedy movie",
+        catalogue,
+    )
+
+    assert indices == [0]
 
 
 def test_retrieve_titles_returns_relevant_results():

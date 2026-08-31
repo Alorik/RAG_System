@@ -5,6 +5,24 @@ from rag.embeddings import create_embeddings
 
 TOP_K = 5
 
+COUNTRY_ALIASES = {
+    "indian": "India",
+    "american": "United States",
+    "british": "United Kingdom",
+    "korean": "South Korea",
+}
+GENRE_KEYWORDS = {
+    "comedy": ("comedy",),
+    "horror": ("horror",),
+    "documentary": ("documentary",),
+    "drama": ("drama",),
+    "romance": ("romantic", "romance"),
+    "crime": ("crime",),
+    "thriller": ("thriller",),
+    "anime": ("anime",),
+    "children": ("children", "kids"),
+}
+
 
 def get_catalogue() -> list[dict]:
     """Load titles and their searchable metadata from SQLite."""
@@ -65,6 +83,53 @@ def create_catalogue_text(title: dict) -> str:
         f"Description: {title['description']}"
     )
 
+
+def select_candidate_indices(question: str, catalogue: list[dict]) -> list[int]:
+    """Select titles matching explicit type, country, or genre terms."""
+    question_lower = question.lower()
+    question_words = set(question_lower.replace("?", " ").split())
+    requested_type: str | None = None
+
+    if "movie" in question_words:
+        requested_type = "Movie"
+    elif "tv show" in question_lower or "tv series" in question_lower:
+        requested_type = "TV Show"
+
+    requested_countries = {
+        country.lower()
+        for country in COUNTRY_ALIASES.values()
+        if country.lower() in question_lower
+    }
+    requested_countries.update(
+        COUNTRY_ALIASES[word].lower()
+        for word in question_words
+        if word in COUNTRY_ALIASES
+    )
+    requested_genres = {
+        keyword
+        for keyword in GENRE_KEYWORDS
+        if keyword in question_words
+    }
+
+    candidates: list[int] = []
+    for index, title in enumerate(catalogue):
+        title_countries = {country.strip().lower() for country in title["country"].split(",")}
+        title_genres = title["genres"].lower()
+
+        if requested_type and title["type"] != requested_type:
+            continue
+        if requested_countries and not requested_countries.intersection(title_countries):
+            continue
+        if requested_genres and not any(
+            genre_word in title_genres
+            for genre in requested_genres
+            for genre_word in GENRE_KEYWORDS[genre]
+        ):
+            continue
+        candidates.append(index)
+
+    return candidates or list(range(len(catalogue)))
+
 def retrieve_titles(
     question: str,
     catalogue: list[dict],
@@ -73,26 +138,16 @@ def retrieve_titles(
     """Return the most relevant catalogue titles for a question."""
     question_embedding = create_embeddings([question])[0]
 
-    scores = catalogue_embeddings @ question_embedding
-
-    question_lower = question.lower()
-
-    if "movie" in question_lower:
-        for index, title in enumerate(catalogue):
-            if title["type"] != "Movie":
-                scores[index] -= 0.2
-
-    if "tv show" in question_lower or "tv series" in question_lower:
-        for index, title in enumerate(catalogue):
-            if title["type"] != "TV Show":
-                scores[index] -= 0.2
-
-    top_indices = np.argsort(scores)[-TOP_K:][::-1]
+    candidate_indices = select_candidate_indices(question, catalogue)
+    candidate_embeddings = catalogue_embeddings[candidate_indices]
+    scores = candidate_embeddings @ question_embedding
+    top_positions = np.argsort(scores)[-TOP_K:][::-1]
+    top_indices = [candidate_indices[position] for position in top_positions]
 
     return [
         {
             **catalogue[index],
-            "score": float(scores[index]),
+            "score": float(scores[position]),
         }
-        for index in top_indices
+        for position, index in zip(top_positions, top_indices)
     ]
