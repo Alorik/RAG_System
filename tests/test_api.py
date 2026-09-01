@@ -118,3 +118,15 @@ def test_ask_returns_catalogue_matches_when_gemini_is_unavailable(monkeypatch):
         "Here are the most relevant catalogue matches."
     )
     assert len(response.json()["sources"]) > 0
+
+
+def test_ask_rejects_a_question_with_no_meaningful_text():
+    response = client.post("/ask", json={"question": " ?! "})
+
+    assert response.status_code == 422
+
+
+def test_ask_rejects_an_overly_long_question():
+    response = client.post("/ask", json={"question": "a" * 501})
+
+    assert response.status_code == 422

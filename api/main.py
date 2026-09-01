@@ -1,5 +1,5 @@
 from enum import Enum
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, field_validator
 
 from rag.embeddings import create_embeddings
 from rag.generation import GeminiUnavailableError, generate_answer
@@ -21,7 +21,16 @@ class TitleType(str, Enum):
     TV_SHOW = "TV Show"
 
 class AskRequest(BaseModel):
-    question: str
+    question: str = Field(max_length=500)
+
+    @field_validator("question")
+    @classmethod
+    def validate_question(cls, value: str) -> str:
+        """Reject empty or meaningless questions and trim surrounding whitespace."""
+        question = value.strip()
+        if not question or not any(character.isalnum() for character in question):
+            raise ValueError("Question must contain meaningful text")
+        return question
 
 
 app = FastAPI(title="Netflix Catalog API")
@@ -229,9 +238,6 @@ def get_stats() -> dict:
 @app.post("/ask")
 def ask_catalogue(request: AskRequest) -> dict:
     """Answer a natural-language question using retrieved catalogue titles."""
-    if not request.question.strip():
-        raise HTTPException(status_code=400, detail="Question cannot be empty")
-
     applied_filters = get_applied_filters(request.question)
     candidate_indices = select_candidate_indices(request.question, catalogue)
     if not candidate_indices:
