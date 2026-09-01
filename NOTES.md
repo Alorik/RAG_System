@@ -36,3 +36,23 @@ How much i can learn while making this assignment in a smaller time frame.
 q6:
 
 With another four hours, I would focus on improving my current code only, cause i feel it miught not be the best assignment, as i was not familiar with any of this. LEARN MORE ABOUT IT, AND KEEP THE CODE IMPROVING.
+
+
+
+
+
+
+# changes made :
+
+Added metadata-aware filtering before RAG retrieval. Questions can now filter titles by Movie/TV Show, country, genre, and release year.
+  - Added country aliases such as “Indian” → “India” to make natural-language searches more accurate.
+  - Changed retrieval so semantic similarity ranks only the filtered candidate titles, instead of comparing every title for explicit-filter queries.
+  - Added truthful no-result handling. If no exact match exists, the API no longer returns unrelated source titles.
+  - Added year-aware fallback messaging. For example, if no Indian movie exists in 2022, the response states that none were released in 2022 and shows how many titles match the other
+    filters.
+
+  - Added match_count, clearer sources containing both title ID and title name, and applied_filters to make responses transparent.
+  - Added input validation for empty, symbols-only, and overly long questions.
+  - Added Gemini reliability handling. If Gemini is unavailable, the API still returns relevant catalogue matches through a retrieval-only fallback.
+  - Added a /health endpoint to report database availability, catalogue title count, and whether Gemini is configured without exposing the API key.
+  - Added tests for filtering accuracy, no-match behavior, Gemini fallback, input validation, health status, and response transparency.
