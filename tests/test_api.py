@@ -1,6 +1,8 @@
+import sqlite3
+
 from fastapi.testclient import TestClient
 
-from api.main import app
+from api.main import app, catalogue
 from rag.generation import GeminiUnavailableError
 
 
@@ -23,6 +25,20 @@ def test_health_reports_database_and_gemini_configuration():
     assert data["catalogue_titles"] == 6234
     assert isinstance(data["gemini_configured"], bool)
     assert data["status"] in {"healthy", "degraded"}
+
+
+def test_health_reports_unhealthy_when_database_is_unavailable(monkeypatch):
+    def unavailable_connection():
+        raise sqlite3.OperationalError("database is unavailable")
+
+    monkeypatch.setattr("api.main.get_connection", unavailable_connection)
+
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "unhealthy"
+    assert response.json()["database"] == "unavailable"
+    assert response.json()["catalogue_titles"] is None
 
 
 def test_get_titles():
@@ -96,6 +112,37 @@ def test_ask_returns_answer_and_sources(monkeypatch):
     assert len(data["sources"]) > 0
     assert "show_id" in data["sources"][0]
     assert "title" in data["sources"][0]
+
+
+def test_ask_sources_respect_explicit_filters(monkeypatch):
+    monkeypatch.setattr(
+        "api.main.generate_answer",
+        lambda question, titles: "Catalogue recommendations.",
+    )
+
+    response = client.post(
+        "/ask",
+        json={"question": "Suggest an Indian comedy movie"},
+    )
+
+    titles_by_id = {title["show_id"]: title for title in catalogue}
+    for source in response.json()["sources"]:
+        title = titles_by_id[source["show_id"]]
+        assert title["type"] == "Movie"
+        assert "india" in title["country"].lower()
+        assert "comedy" in title["genres"].lower()
+
+
+def test_ask_returns_empty_applied_filters_for_a_general_question(monkeypatch):
+    monkeypatch.setattr(
+        "api.main.generate_answer",
+        lambda question, titles: "Catalogue recommendations.",
+    )
+
+    response = client.post("/ask", json={"question": "Recommend something"})
+
+    assert response.status_code == 200
+    assert response.json()["applied_filters"] == {}
 
 
 def test_ask_returns_no_sources_when_filters_have_no_matches():
