@@ -76,6 +76,11 @@ def test_ask_returns_answer_and_sources(monkeypatch):
 
     assert data["answer"] == "Brahman Naman is an Indian comedy movie."
     assert data["match_count"] > 0
+    assert data["applied_filters"] == {
+        "type": "Movie",
+        "countries": ["India"],
+        "genres": ["comedy"],
+    }
     assert "sources" in data
     assert len(data["sources"]) > 0
     assert "show_id" in data["sources"][0]
@@ -92,6 +97,7 @@ def test_ask_returns_no_sources_when_filters_have_no_matches():
     assert response.json()["match_count"] == 0
     assert response.json()["related_match_count"] > 0
     assert "but none were released in 2022" in response.json()["answer"]
+    assert response.json()["applied_filters"]["release_years"] == [2022]
     assert response.json()["sources"] == []
 
 

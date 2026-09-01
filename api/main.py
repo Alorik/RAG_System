@@ -6,6 +6,7 @@ from rag.generation import GeminiUnavailableError, generate_answer
 from rag.retrieval import (
     YEAR_PATTERN,
     create_catalogue_text,
+    get_applied_filters,
     get_catalogue,
     retrieve_titles,
     select_candidate_indices,
@@ -231,6 +232,7 @@ def ask_catalogue(request: AskRequest) -> dict:
     if not request.question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty")
 
+    applied_filters = get_applied_filters(request.question)
     candidate_indices = select_candidate_indices(request.question, catalogue)
     if not candidate_indices:
         requested_years = YEAR_PATTERN.findall(request.question)
@@ -247,11 +249,13 @@ def ask_catalogue(request: AskRequest) -> dict:
                 ),
                 "match_count": 0,
                 "related_match_count": related_count,
+                "applied_filters": applied_filters,
                 "sources": [],
             }
         return {
             "answer": "No catalogue titles match the filters in your question.",
             "match_count": 0,
+            "applied_filters": applied_filters,
             "sources": [],
         }
 
@@ -272,6 +276,7 @@ def ask_catalogue(request: AskRequest) -> dict:
     return {
         "answer": answer,
         "match_count": len(candidate_indices),
+        "applied_filters": applied_filters,
         "sources": [
             {
                 "show_id": title["show_id"],

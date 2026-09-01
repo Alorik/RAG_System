@@ -87,8 +87,8 @@ def create_catalogue_text(title: dict) -> str:
     )
 
 
-def select_candidate_indices(question: str, catalogue: list[dict]) -> list[int]:
-    """Select titles matching explicit type, country, genre, or year terms."""
+def get_applied_filters(question: str) -> dict[str, str | list[str] | list[int]]:
+    """Extract the supported metadata filters found in a question."""
     question_lower = question.lower()
     question_words = set(question_lower.replace("?", " ").split())
     requested_type: str | None = None
@@ -99,12 +99,12 @@ def select_candidate_indices(question: str, catalogue: list[dict]) -> list[int]:
         requested_type = "TV Show"
 
     requested_countries = {
-        country.lower()
+        country
         for country in COUNTRY_ALIASES.values()
         if country.lower() in question_lower
     }
     requested_countries.update(
-        COUNTRY_ALIASES[word].lower()
+        COUNTRY_ALIASES[word]
         for word in question_words
         if word in COUNTRY_ALIASES
     )
@@ -114,6 +114,29 @@ def select_candidate_indices(question: str, catalogue: list[dict]) -> list[int]:
         if keyword in question_words
     }
     requested_years = {int(year) for year in YEAR_PATTERN.findall(question)}
+
+    filters: dict[str, str | list[str] | list[int]] = {}
+    if requested_type:
+        filters["type"] = requested_type
+    if requested_countries:
+        filters["countries"] = sorted(requested_countries)
+    if requested_genres:
+        filters["genres"] = sorted(requested_genres)
+    if requested_years:
+        filters["release_years"] = sorted(requested_years)
+    return filters
+
+
+def select_candidate_indices(question: str, catalogue: list[dict]) -> list[int]:
+    """Select titles matching explicit type, country, genre, or year terms."""
+    filters = get_applied_filters(question)
+    requested_type = filters.get("type")
+    requested_countries = {
+        country.lower()
+        for country in filters.get("countries", [])
+    }
+    requested_genres = set(filters.get("genres", []))
+    requested_years = set(filters.get("release_years", []))
 
     candidates: list[int] = []
     for index, title in enumerate(catalogue):
@@ -134,10 +157,7 @@ def select_candidate_indices(question: str, catalogue: list[dict]) -> list[int]:
             continue
         candidates.append(index)
 
-    has_explicit_filter = any(
-        (requested_type, requested_countries, requested_genres, requested_years)
-    )
-    return candidates if has_explicit_filter else list(range(len(catalogue)))
+    return candidates if filters else list(range(len(catalogue)))
 
 def retrieve_titles(
     question: str,
