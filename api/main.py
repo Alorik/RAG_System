@@ -270,8 +270,11 @@ def ask_catalogue(request: AskRequest) -> dict:
             request.question,
             retrieved_titles,
         )
-    except GeminiUnavailableError as error:
-        raise HTTPException(status_code=503, detail=str(error)) from error
+    except GeminiUnavailableError:
+        answer = (
+            "Gemini is temporarily unavailable. "
+            "Here are the most relevant catalogue matches."
+        )
 
     return {
         "answer": answer,

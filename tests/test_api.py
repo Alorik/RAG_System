@@ -101,7 +101,7 @@ def test_ask_returns_no_sources_when_filters_have_no_matches():
     assert response.json()["sources"] == []
 
 
-def test_ask_returns_service_error_when_gemini_is_unavailable(monkeypatch):
+def test_ask_returns_catalogue_matches_when_gemini_is_unavailable(monkeypatch):
     def fake_generate_answer(question, titles):
         raise GeminiUnavailableError("GEMINI_API_KEY is not configured")
 
@@ -112,5 +112,9 @@ def test_ask_returns_service_error_when_gemini_is_unavailable(monkeypatch):
         json={"question": "Suggest an Indian comedy movie"},
     )
 
-    assert response.status_code == 503
-    assert response.json()["detail"] == "GEMINI_API_KEY is not configured"
+    assert response.status_code == 200
+    assert response.json()["answer"] == (
+        "Gemini is temporarily unavailable. "
+        "Here are the most relevant catalogue matches."
+    )
+    assert len(response.json()["sources"]) > 0
