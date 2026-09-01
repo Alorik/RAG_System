@@ -1,6 +1,7 @@
 from fastapi.testclient import TestClient
 
 from api.main import app
+from rag.generation import GeminiUnavailableError
 
 
 client = TestClient(app)
@@ -92,3 +93,18 @@ def test_ask_returns_no_sources_when_filters_have_no_matches():
     assert response.json()["related_match_count"] > 0
     assert "but none were released in 2022" in response.json()["answer"]
     assert response.json()["sources"] == []
+
+
+def test_ask_returns_service_error_when_gemini_is_unavailable(monkeypatch):
+    def fake_generate_answer(question, titles):
+        raise GeminiUnavailableError("GEMINI_API_KEY is not configured")
+
+    monkeypatch.setattr("api.main.generate_answer", fake_generate_answer)
+
+    response = client.post(
+        "/ask",
+        json={"question": "Suggest an Indian comedy movie"},
+    )
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "GEMINI_API_KEY is not configured"

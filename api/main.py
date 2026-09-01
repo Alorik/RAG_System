@@ -2,7 +2,7 @@ from enum import Enum
 from pydantic import BaseModel
 
 from rag.embeddings import create_embeddings
-from rag.generation import generate_answer
+from rag.generation import GeminiUnavailableError, generate_answer
 from rag.retrieval import (
     YEAR_PATTERN,
     create_catalogue_text,
@@ -261,10 +261,13 @@ def ask_catalogue(request: AskRequest) -> dict:
         catalogue_embeddings,
     )
 
-    answer = generate_answer(
-        request.question,
-        retrieved_titles,
-    )
+    try:
+        answer = generate_answer(
+            request.question,
+            retrieved_titles,
+        )
+    except GeminiUnavailableError as error:
+        raise HTTPException(status_code=503, detail=str(error)) from error
 
     return {
         "answer": answer,

@@ -2,10 +2,15 @@ import os
 
 from dotenv import load_dotenv
 from google import genai
+from google.genai import errors
 
 load_dotenv()
 
 MODEL_NAME = "gemini-3.6-flash"
+
+
+class GeminiUnavailableError(RuntimeError):
+    """Raised when Gemini cannot be configured or reached."""
 
 
 def create_client() -> genai.Client:
@@ -13,7 +18,7 @@ def create_client() -> genai.Client:
     api_key = os.getenv("GEMINI_API_KEY")
 
     if not api_key:
-        raise RuntimeError("GEMINI_API_KEY is not configured")
+        raise GeminiUnavailableError("GEMINI_API_KEY is not configured")
 
     return genai.Client(api_key=api_key)
 
@@ -57,9 +62,14 @@ Catalogue context:
 {context}
 """
 
-    interaction = client.interactions.create(
-        model=MODEL_NAME,
-        input=prompt,
-    )
+    try:
+        interaction = client.interactions.create(
+            model=MODEL_NAME,
+            input=prompt,
+        )
+    except errors.APIError as error:
+        raise GeminiUnavailableError(
+            "Gemini is temporarily unavailable. Please try again shortly."
+        ) from error
 
     return interaction.output_text or "I could not generate an answer."
