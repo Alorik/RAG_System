@@ -84,8 +84,8 @@ Example request:
 }
 ```
 
-The response contains a generated answer and the `show_id`s of the catalogue
-titles used as sources.
+The response contains a generated answer, the count of titles matching any
+explicit question filters, and the `show_id` and title of each retrieved source.
 
 ## How to test
 
@@ -113,10 +113,9 @@ This is what I did in the given time frame for the assignment. I hope it reaches
 - Catalogue embeddings are generated when the API starts, so startup is
   relatively slow.
 - Embeddings are kept in memory rather than persisted in a vector database.
-- The RAG pipeline retrieves a fixed top-k set of titles.
-- Retrieval uses semantic similarity with a small amount of type-aware
-  adjustment for Movie and TV Show queries.
+- The RAG pipeline retrieves a fixed top-k set from metadata-filtered
+  candidates when the question contains a supported type, country, genre, or
+  release-year filter.
 - Gemini generation requires an API key and network access.
 - The current system is designed for the provided catalogue size and would
   need architectural changes for much larger datasets.
-

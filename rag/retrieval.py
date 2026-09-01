@@ -1,9 +1,12 @@
+import re
+
 import numpy as np
 
 from api.database import get_connection
 from rag.embeddings import create_embeddings
 
 TOP_K = 5
+YEAR_PATTERN = re.compile(r"\b(?:19|20)\d{2}\b")
 
 COUNTRY_ALIASES = {
     "indian": "India",
@@ -85,7 +88,7 @@ def create_catalogue_text(title: dict) -> str:
 
 
 def select_candidate_indices(question: str, catalogue: list[dict]) -> list[int]:
-    """Select titles matching explicit type, country, or genre terms."""
+    """Select titles matching explicit type, country, genre, or year terms."""
     question_lower = question.lower()
     question_words = set(question_lower.replace("?", " ").split())
     requested_type: str | None = None
@@ -110,6 +113,7 @@ def select_candidate_indices(question: str, catalogue: list[dict]) -> list[int]:
         for keyword in GENRE_KEYWORDS
         if keyword in question_words
     }
+    requested_years = {int(year) for year in YEAR_PATTERN.findall(question)}
 
     candidates: list[int] = []
     for index, title in enumerate(catalogue):
@@ -126,9 +130,14 @@ def select_candidate_indices(question: str, catalogue: list[dict]) -> list[int]:
             for genre_word in GENRE_KEYWORDS[genre]
         ):
             continue
+        if requested_years and title["release_year"] not in requested_years:
+            continue
         candidates.append(index)
 
-    return candidates or list(range(len(catalogue)))
+    has_explicit_filter = any(
+        (requested_type, requested_countries, requested_genres, requested_years)
+    )
+    return candidates if has_explicit_filter else list(range(len(catalogue)))
 
 def retrieve_titles(
     question: str,
@@ -136,9 +145,11 @@ def retrieve_titles(
     catalogue_embeddings: np.ndarray,
 ) -> list[dict]:
     """Return the most relevant catalogue titles for a question."""
-    question_embedding = create_embeddings([question])[0]
-
     candidate_indices = select_candidate_indices(question, catalogue)
+    if not candidate_indices:
+        return []
+
+    question_embedding = create_embeddings([question])[0]
     candidate_embeddings = catalogue_embeddings[candidate_indices]
     scores = candidate_embeddings @ question_embedding
     top_positions = np.argsort(scores)[-TOP_K:][::-1]

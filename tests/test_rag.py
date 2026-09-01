@@ -42,6 +42,16 @@ def test_candidate_filter_uses_explicit_question_metadata():
     assert indices == [0]
 
 
+def test_candidate_filter_returns_no_titles_for_missing_year():
+    catalogue = [
+        {"type": "Movie", "country": "India", "genres": "Comedies", "release_year": 2021},
+    ]
+
+    indices = select_candidate_indices("Suggest an Indian movie from 2022", catalogue)
+
+    assert indices == []
+
+
 def test_retrieve_titles_returns_relevant_results():
     catalogue = get_catalogue()
 

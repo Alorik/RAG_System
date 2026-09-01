@@ -74,5 +74,21 @@ def test_ask_returns_answer_and_sources(monkeypatch):
     data = response.json()
 
     assert data["answer"] == "Brahman Naman is an Indian comedy movie."
+    assert data["match_count"] > 0
     assert "sources" in data
     assert len(data["sources"]) > 0
+    assert "show_id" in data["sources"][0]
+    assert "title" in data["sources"][0]
+
+
+def test_ask_returns_no_sources_when_filters_have_no_matches():
+    response = client.post(
+        "/ask",
+        json={"question": "Suggest an Indian movie from 2022"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["match_count"] == 0
+    assert response.json()["related_match_count"] > 0
+    assert "but none were released in 2022" in response.json()["answer"]
+    assert response.json()["sources"] == []

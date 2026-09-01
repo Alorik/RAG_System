@@ -3,7 +3,13 @@ from pydantic import BaseModel
 
 from rag.embeddings import create_embeddings
 from rag.generation import generate_answer
-from rag.retrieval import create_catalogue_text, get_catalogue, retrieve_titles
+from rag.retrieval import (
+    YEAR_PATTERN,
+    create_catalogue_text,
+    get_catalogue,
+    retrieve_titles,
+    select_candidate_indices,
+)
 from fastapi import FastAPI, HTTPException, Query
 
 from api.database import get_connection
@@ -225,6 +231,30 @@ def ask_catalogue(request: AskRequest) -> dict:
     if not request.question.strip():
         raise HTTPException(status_code=400, detail="Question cannot be empty")
 
+    candidate_indices = select_candidate_indices(request.question, catalogue)
+    if not candidate_indices:
+        requested_years = YEAR_PATTERN.findall(request.question)
+        if requested_years:
+            question_without_year = YEAR_PATTERN.sub("", request.question)
+            related_count = len(
+                select_candidate_indices(question_without_year, catalogue)
+            )
+            year_text = ", ".join(requested_years)
+            return {
+                "answer": (
+                    f"There are {related_count} titles matching your other filters, "
+                    f"but none were released in {year_text}."
+                ),
+                "match_count": 0,
+                "related_match_count": related_count,
+                "sources": [],
+            }
+        return {
+            "answer": "No catalogue titles match the filters in your question.",
+            "match_count": 0,
+            "sources": [],
+        }
+
     retrieved_titles = retrieve_titles(
         request.question,
         catalogue,
@@ -238,8 +268,12 @@ def ask_catalogue(request: AskRequest) -> dict:
 
     return {
         "answer": answer,
+        "match_count": len(candidate_indices),
         "sources": [
-            title["show_id"]
+            {
+                "show_id": title["show_id"],
+                "title": title["title"],
+            }
             for title in retrieved_titles
         ],
     }
