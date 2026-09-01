@@ -14,6 +14,17 @@ def test_root():
     assert response.json()["message"] == "Netflix Catalog API is running"
 
 
+def test_health_reports_database_and_gemini_configuration():
+    response = client.get("/health")
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["database"] == "available"
+    assert data["catalogue_titles"] == 6234
+    assert isinstance(data["gemini_configured"], bool)
+    assert data["status"] in {"healthy", "degraded"}
+
+
 def test_get_titles():
     response = client.get("/titles")
 

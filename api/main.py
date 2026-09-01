@@ -1,3 +1,6 @@
+import os
+import sqlite3
+
 from enum import Enum
 from pydantic import BaseModel, Field, field_validator
 
@@ -43,6 +46,39 @@ catalogue_embeddings = create_embeddings(catalogue_texts)
 def root() -> dict[str, str]:
     """Return a simple response to confirm the API is running."""
     return {"message": "Netflix Catalog API is running"}
+
+
+@app.get("/health")
+def get_health() -> dict:
+    """Report whether the database and Gemini configuration are available."""
+    connection: sqlite3.Connection | None = None
+    title_count: int | None = None
+
+    try:
+        connection = get_connection()
+        title_count = connection.execute("SELECT COUNT(*) FROM titles").fetchone()[0]
+    except sqlite3.Error:
+        database_status = "unavailable"
+    else:
+        database_status = "available"
+    finally:
+        if connection is not None:
+            connection.close()
+
+    gemini_configured = bool(os.getenv("GEMINI_API_KEY"))
+    if database_status == "unavailable":
+        status = "unhealthy"
+    elif not gemini_configured:
+        status = "degraded"
+    else:
+        status = "healthy"
+
+    return {
+        "status": status,
+        "database": database_status,
+        "catalogue_titles": title_count,
+        "gemini_configured": gemini_configured,
+    }
 
 
 @app.get("/titles")
