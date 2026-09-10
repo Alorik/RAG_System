@@ -11,6 +11,7 @@ from rag.retrieval import (
     create_catalogue_text,
     get_applied_filters,
     get_catalogue,
+    get_year_filter_description,
     retrieve_titles,
     select_candidate_indices,
 )
@@ -276,6 +277,29 @@ def ask_catalogue(request: AskRequest) -> dict:
     """Answer a natural-language question using retrieved catalogue titles."""
     applied_filters = get_applied_filters(request.question)
     candidate_indices = select_candidate_indices(request.question, catalogue)
+
+    # Handle exact count questions separately.
+    question_lower = request.question.lower()
+    is_count_query = any(
+        phrase in question_lower
+        for phrase in ["how many", "number of", "count of", "total number"]
+    )
+    if is_count_query:
+        count = len(candidate_indices)
+        year_description = get_year_filter_description(request.question)
+
+        if year_description:
+            answer = f"There are {count} titles {year_description}."
+        else:
+            answer = f"There are {count} titles matching your criteria."
+
+        return {
+            "answer": answer,
+            "match_count": count,
+            "applied_filters": applied_filters,
+            "sources": [],
+        }
+
     if not candidate_indices:
         requested_years = YEAR_PATTERN.findall(request.question)
         if requested_years:
@@ -294,6 +318,7 @@ def ask_catalogue(request: AskRequest) -> dict:
                 "applied_filters": applied_filters,
                 "sources": [],
             }
+
         return {
             "answer": "No catalogue titles match the filters in your question.",
             "match_count": 0,

@@ -8,6 +8,11 @@ from rag.embeddings import create_embeddings
 TOP_K = 5
 YEAR_PATTERN = re.compile(r"\b(?:19|20)\d{2}\b")
 
+YEAR_COMPARISON_PATTERN = re.compile(
+    r"\b(after|before|since|from)\s+(?:the\s+year\s+)?((?:19|20)\d{2})\b",
+    re.IGNORECASE,
+)
+
 COUNTRY_ALIASES = {
     "indian": "India",
     "american": "United States",
@@ -127,6 +132,28 @@ def get_applied_filters(question: str) -> dict[str, str | list[str] | list[int]]
     return filters
 
 
+def get_year_filter_description(question: str) -> str | None:
+    """Return a human-readable description of the year filter."""
+    match = YEAR_COMPARISON_PATTERN.search(question)
+
+    if match:
+        operator = match.group(1).lower()
+        year = match.group(2)
+
+        if operator == "after":
+            return f"released after {year}"
+        if operator == "before":
+            return f"released before {year}"
+        if operator in {"since", "from"}:
+            return f"released from {year} onwards"
+
+    years = YEAR_PATTERN.findall(question)
+    if years:
+        return f"released in {years[0]}"
+
+    return None
+
+    
 def select_candidate_indices(question: str, catalogue: list[dict]) -> list[int]:
     """Select titles matching explicit type, country, genre, or year terms."""
     filters = get_applied_filters(question)
@@ -138,23 +165,56 @@ def select_candidate_indices(question: str, catalogue: list[dict]) -> list[int]:
     requested_genres = set(filters.get("genres", []))
     requested_years = set(filters.get("release_years", []))
 
+    question_lower = question.lower()
+
+    year_comparison = YEAR_COMPARISON_PATTERN.search(question_lower)
+
+    year_operator: str | None = None
+    comparison_year: int | None = None
+
+    if year_comparison:
+        year_operator = year_comparison.group(1).lower()
+        comparison_year = int(year_comparison.group(2))
+
     candidates: list[int] = []
+
     for index, title in enumerate(catalogue):
-        title_countries = {country.strip().lower() for country in title["country"].split(",")}
+        title_countries = {
+            country.strip().lower()
+            for country in title["country"].split(",")
+        }
         title_genres = title["genres"].lower()
+        release_year = title["release_year"]
 
         if requested_type and title["type"] != requested_type:
             continue
-        if requested_countries and not requested_countries.intersection(title_countries):
+
+        if (
+            requested_countries
+            and not requested_countries.intersection(title_countries)
+        ):
             continue
+
         if requested_genres and not any(
             genre_word in title_genres
             for genre in requested_genres
             for genre_word in GENRE_KEYWORDS[genre]
         ):
             continue
-        if requested_years and title["release_year"] not in requested_years:
+
+        if year_operator and comparison_year is not None:
+            if year_operator == "after" and release_year <= comparison_year:
+                continue
+
+            if year_operator == "before" and release_year >= comparison_year:
+                continue
+
+            if year_operator in {"since", "from"} and release_year < comparison_year:
+                continue
+
+        elif requested_years and release_year not in requested_years:
             continue
+
         candidates.append(index)
 
     return candidates if filters else list(range(len(catalogue)))
